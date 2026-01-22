@@ -1,6 +1,7 @@
 import { resolver } from "hono-openapi"
 import z from "zod"
 import { Storage } from "../storage/storage"
+import { Session } from "../session"
 
 export const ERRORS = {
   400: {
@@ -26,6 +27,14 @@ export const ERRORS = {
     content: {
       "application/json": {
         schema: resolver(Storage.NotFoundError.Schema),
+      },
+    },
+  },
+  409: {
+    description: "Conflict",
+    content: {
+      "application/json": {
+        schema: resolver(Session.DuplicateError.Schema),
       },
     },
   },

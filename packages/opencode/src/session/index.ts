@@ -1,5 +1,7 @@
 import { Slug } from "@opencode-ai/util/slug"
+import { NamedError } from "@opencode-ai/util/error"
 import path from "path"
+import fs from "fs/promises"
 import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
 import { Decimal } from "decimal.js"
@@ -25,6 +27,13 @@ import { Global } from "@/global"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
+
+  export const DuplicateError = NamedError.create(
+    "SessionDuplicateError",
+    z.object({
+      id: Identifier.schema("session"),
+    }),
+  )
 
   const parentTitlePrefix = "New session - "
   const childTitlePrefix = "Child session - "
@@ -125,11 +134,19 @@ export namespace Session {
         error: MessageV2.Assistant.shape.error,
       }),
     ),
+    PlanUpdated: BusEvent.define(
+      "session.plan.updated",
+      z.object({
+        sessionID: z.string(),
+        path: z.string(),
+      }),
+    ),
   }
 
   export const create = fn(
     z
       .object({
+        id: Identifier.schema("session").optional(),
         parentID: Identifier.schema("session").optional(),
         title: z.string().optional(),
         permission: Info.shape.permission,
@@ -137,6 +154,7 @@ export namespace Session {
       .optional(),
     async (input) => {
       return createNext({
+        id: input?.id,
         parentID: input?.parentID,
         directory: Instance.directory,
         title: input?.title,
@@ -196,6 +214,18 @@ export namespace Session {
     directory: string
     permission?: PermissionNext.Ruleset
   }) {
+    if (input.id) {
+      const project = Instance.project
+      const existing = await Storage.read<Info>(["session", project.id, input.id])
+        .then(() => true)
+        .catch((error) => {
+          if (error instanceof Storage.NotFoundError) return false
+          throw error
+        })
+      if (existing) {
+        throw new DuplicateError({ id: input.id })
+      }
+    }
     const result: Info = {
       id: Identifier.descending("session", input.id),
       slug: Slug.create(),

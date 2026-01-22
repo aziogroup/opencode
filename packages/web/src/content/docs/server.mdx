@@ -147,7 +147,7 @@ The opencode server exposes the following APIs.
 | Method   | Path                                     | Description                           | Notes                                                                              |
 | -------- | ---------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------- |
 | `GET`    | `/session`                               | List all sessions                     | Returns <a href={typesUrl}><code>Session[]</code></a>                              |
-| `POST`   | `/session`                               | Create a new session                  | body: `{ parentID?, title? }`, returns <a href={typesUrl}><code>Session</code></a> |
+| `POST`   | `/session`                               | Create a new session                  | body: `{ id?, parentID?, title? }`, returns <a href={typesUrl}><code>Session</code></a> (409 if id exists) |
 | `GET`    | `/session/status`                        | Get session status for all sessions   | Returns `{ [sessionID: string]: `<a href={typesUrl}>SessionStatus</a>` }`          |
 | `GET`    | `/session/:id`                           | Get session details                   | Returns <a href={typesUrl}><code>Session</code></a>                                |
 | `DELETE` | `/session/:id`                           | Delete a session and all its data     | Returns `boolean`                                                                  |

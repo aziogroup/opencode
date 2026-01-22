@@ -38,7 +38,7 @@ function pagerCmd(): string[] {
 export const SessionCommand = cmd({
   command: "session",
   describe: "manage sessions",
-  builder: (yargs: Argv) => yargs.command(SessionListCommand).demandCommand(),
+  builder: (yargs: Argv) => yargs.command(SessionListCommand).command(SessionCreateCommand).demandCommand(),
   async handler() {},
 })
 
@@ -99,6 +99,37 @@ export const SessionListCommand = cmd({
       } else {
         console.log(output)
       }
+    })
+  },
+})
+
+export const SessionCreateCommand = cmd({
+  command: "create",
+  describe: "create session",
+  builder: (yargs: Argv) => {
+    return yargs
+      .option("id", {
+        describe: "session ID to create",
+        type: "string",
+        demandOption: true,
+      })
+      .option("title", {
+        describe: "session title",
+        type: "string",
+      })
+      .option("parent", {
+        describe: "parent session ID",
+        type: "string",
+      })
+  },
+  handler: async (args) => {
+    await bootstrap(process.cwd(), async () => {
+      const session = await Session.create({
+        id: args.id,
+        title: args.title,
+        parentID: args.parent,
+      })
+      console.log(session.id)
     })
   },
 })
