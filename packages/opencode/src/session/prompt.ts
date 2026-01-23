@@ -1257,6 +1257,9 @@ Plan mode is active. The user indicated that they do not want you to execute yet
 ${exists ? `A plan file already exists at ${plan}. You can read it and make incremental edits using the edit tool.` : `No plan file exists yet. You should create your plan at ${plan} using the write tool.`}
 You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.
 
+## Read-only Exception
+If the user is only asking you to read, inspect, explain, or summarize existing content and no edits or commands are needed, you may skip creating a plan and you do not need to call plan_exit. In that case, only use read-only tools and answer directly. If any edits or executions are required, follow the plan workflow below.
+
 ## Plan Workflow
 
 ### Phase 1: Initial Understanding

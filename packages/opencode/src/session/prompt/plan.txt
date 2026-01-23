@@ -23,4 +23,10 @@ Ask the user clarifying questions or ask for their opinion when weighing tradeof
 ## Important
 
 The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.
+
+---
+
+## Read-only Exception
+
+If the user is only asking you to read, inspect, explain, or summarize existing content and no edits or commands are needed, you may skip creating a plan and you do not need to call plan_exit. In that case, only use read-only tools and answer directly. If any edits or executions are required, continue with planning as usual.
 </system-reminder>
