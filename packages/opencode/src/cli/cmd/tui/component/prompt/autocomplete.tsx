@@ -45,6 +45,12 @@ function extractLineRange(input: string) {
   }
 }
 
+function normalizeDescription(input?: string) {
+  if (!input) return
+  const text = input.replace(/\s+/g, " ").trim()
+  return text.length > 0 ? text : undefined
+}
+
 export type AutocompleteRef = {
   onInput: (value: string) => void
   onKeyDown: (e: KeyEvent) => void
@@ -294,7 +300,7 @@ export function Autocomplete(props: {
       options.push({
         display: Locale.truncateMiddle(text, width),
         value: text,
-        description: res.description,
+        description: normalizeDescription(res.description),
         onSelect: () => {
           insertPart(res.name, {
             type: "file",
@@ -342,12 +348,15 @@ export function Autocomplete(props: {
   })
 
   const commands = createMemo((): AutocompleteOption[] => {
-    const results: AutocompleteOption[] = [...command.slashes()]
+    const results: AutocompleteOption[] = command.slashes().map((item) => ({
+      ...item,
+      description: normalizeDescription(item.description),
+    }))
 
     for (const serverCommand of sync.data.command) {
       results.push({
         display: "/" + serverCommand.name + (serverCommand.mcp ? " (MCP)" : ""),
-        description: serverCommand.description,
+        description: normalizeDescription(serverCommand.description),
         onSelect: () => {
           const newText = "/" + serverCommand.name + " "
           const cursor = props.input().logicalCursor
