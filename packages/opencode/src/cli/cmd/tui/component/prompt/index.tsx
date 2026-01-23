@@ -85,6 +85,22 @@ export function Prompt(props: PromptProps) {
     }
   }
 
+  const interrupt = () => {
+    if (autocomplete.visible) return false
+    if (!input.focused) return false
+    // TODO: this should be its own command
+    if (store.mode === "shell") {
+      setStore("mode", "normal")
+      return true
+    }
+    if (!props.sessionID) return false
+    if (status().type === "idle") return false
+    sdk.client.session.abort({
+      sessionID: props.sessionID,
+    })
+    return true
+  }
+
   const textareaKeybindings = useTextareaKeybindings()
 
   const fileStyleId = syntax().getStyleId("extmark.file")!
@@ -117,7 +133,6 @@ export function Prompt(props: PromptProps) {
     prompt: PromptInfo
     mode: "normal" | "shell"
     extmarkToPartIndex: Map<number, number>
-    interrupt: number
     placeholder: number
   }>({
     placeholder: Math.floor(Math.random() * PLACEHOLDERS.length),
@@ -127,7 +142,6 @@ export function Prompt(props: PromptProps) {
     },
     mode: "normal",
     extmarkToPartIndex: new Map(),
-    interrupt: 0,
   })
 
   // Initialize agent/model/variant from last user message when session changes
@@ -201,27 +215,7 @@ export function Prompt(props: PromptProps) {
         hidden: true,
         enabled: status().type !== "idle",
         onSelect: (dialog) => {
-          if (autocomplete.visible) return
-          if (!input.focused) return
-          // TODO: this should be its own command
-          if (store.mode === "shell") {
-            setStore("mode", "normal")
-            return
-          }
-          if (!props.sessionID) return
-
-          setStore("interrupt", store.interrupt + 1)
-
-          setTimeout(() => {
-            setStore("interrupt", 0)
-          }, 5000)
-
-          if (store.interrupt >= 2) {
-            sdk.client.session.abort({
-              sessionID: props.sessionID,
-            })
-            setStore("interrupt", 0)
-          }
+          if (!interrupt()) return
           dialog.clear()
         },
       },
@@ -788,6 +782,13 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+                if (keybind.match("session_interrupt", e)) {
+                  const handled = interrupt()
+                  if (handled) {
+                    e.preventDefault()
+                    return
+                  }
+                }
                 // Handle clipboard paste (Ctrl+V) - check for images first on Windows
                 // This is needed because Windows terminal doesn't properly send image data
                 // through bracketed paste, so we need to intercept the keypress and
@@ -1063,11 +1064,8 @@ export function Prompt(props: PromptProps) {
                   })()}
                 </box>
               </box>
-              <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
-                esc{" "}
-                <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                  {store.interrupt > 0 ? "again to interrupt" : "interrupt"}
-                </span>
+              <text fg={theme.text}>
+                esc <span style={{ fg: theme.textMuted }}>interrupt</span>
               </text>
             </box>
           </Show>

@@ -1345,6 +1345,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     if (!abort) {
       throw new Session.BusyError(input.sessionID)
     }
+    SessionStatus.set(input.sessionID, { type: "busy" })
     using _ = defer(() => cancel(input.sessionID))
 
     const session = await Session.get(input.sessionID)
