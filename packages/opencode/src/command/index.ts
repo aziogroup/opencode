@@ -6,6 +6,8 @@ import { Identifier } from "../id/id"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { MCP } from "../mcp"
+import { Skill } from "../skill/skill"
+import { ConfigMarkdown } from "../config/markdown"
 
 export namespace Command {
   export const Event = {
@@ -27,6 +29,8 @@ export namespace Command {
       agent: z.string().optional(),
       model: z.string().optional(),
       mcp: z.boolean().optional(),
+      skill: z.boolean().optional(),
+      location: z.string().optional(),
       // workaround for zod not supporting async functions natively so we use getters
       // https://zod.dev/v4/changelog?id=zfunction
       template: z.promise(z.string()).or(z.string()),
@@ -115,6 +119,26 @@ export namespace Command {
           })
         },
         hints: prompt.arguments?.map((_, i) => `$${i + 1}`) ?? [],
+      }
+    }
+
+    // Integrate Skills as commands (user-invocable skills only)
+    const skills = await Skill.all()
+    for (const skill of skills) {
+      // Skip if command with same name already exists (commands take priority)
+      if (result[skill.name]) continue
+      // Skip skills with userInvocable: false (AI-only skills)
+      if (skill.userInvocable === false) continue
+
+      result[skill.name] = {
+        name: skill.name,
+        description: skill.description,
+        skill: true,
+        location: skill.location,
+        get template() {
+          return ConfigMarkdown.parse(skill.location).then((md) => md.content.trim())
+        },
+        hints: skill.argumentHint ? [skill.argumentHint] : [],
       }
     }
 

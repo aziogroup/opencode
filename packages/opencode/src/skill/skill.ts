@@ -17,6 +17,9 @@ export namespace Skill {
     name: z.string(),
     description: z.string(),
     location: z.string(),
+    disableModelInvocation: z.boolean().optional(),
+    userInvocable: z.boolean().optional(),
+    argumentHint: z.string().optional(),
   })
   export type Info = z.infer<typeof Info>
 
@@ -56,7 +59,19 @@ export namespace Skill {
 
       if (!md) return
 
-      const parsed = Info.pick({ name: true, description: true }).safeParse(md.data)
+      // Parse frontmatter with kebab-case to camelCase conversion
+      const parsed = Info.pick({
+        name: true,
+        description: true,
+        disableModelInvocation: true,
+        userInvocable: true,
+        argumentHint: true,
+      }).safeParse({
+        ...md.data,
+        disableModelInvocation: md.data["disable-model-invocation"],
+        userInvocable: md.data["user-invocable"],
+        argumentHint: md.data["argument-hint"],
+      })
       if (!parsed.success) return
 
       // Warn on duplicate skill names
@@ -72,6 +87,9 @@ export namespace Skill {
         name: parsed.data.name,
         description: parsed.data.description,
         location: match,
+        disableModelInvocation: parsed.data.disableModelInvocation,
+        userInvocable: parsed.data.userInvocable,
+        argumentHint: parsed.data.argumentHint,
       }
     }
 

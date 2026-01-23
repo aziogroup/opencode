@@ -9,13 +9,15 @@ export const SkillTool = Tool.define("skill", async (ctx) => {
   const skills = await Skill.all()
 
   // Filter skills by agent permissions if agent provided
+  // Also exclude skills with disableModelInvocation: true (AI cannot auto-invoke)
   const agent = ctx?.agent
   const accessibleSkills = agent
     ? skills.filter((skill) => {
+        if (skill.disableModelInvocation) return false
         const rule = PermissionNext.evaluate("skill", skill.name, agent.permission)
         return rule.action !== "deny"
       })
-    : skills
+    : skills.filter((skill) => !skill.disableModelInvocation)
 
   const description =
     accessibleSkills.length === 0

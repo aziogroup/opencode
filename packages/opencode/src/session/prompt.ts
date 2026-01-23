@@ -1683,6 +1683,12 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
     const templateParts = await resolvePromptParts(template)
     const isSubtask = (agent.mode === "subagent" && command.subtask !== false) || command.subtask === true
+
+    // Skill-specific handling: show only user input, inject skill content as system prompt
+    const isSkill = command.skill === true
+    const skillSystem = isSkill ? template : undefined
+    const skillUserInput = `/${input.command}${input.arguments ? " " + input.arguments : ""}`
+
     const parts = isSubtask
       ? [
           {
@@ -1698,7 +1704,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             prompt: templateParts.find((y) => y.type === "text")?.text ?? "",
           },
         ]
-      : [...templateParts, ...(input.parts ?? [])]
+      : isSkill
+        ? [{ type: "text" as const, text: skillUserInput }, ...(input.parts ?? [])]
+        : [...templateParts, ...(input.parts ?? [])]
 
     const userAgent = isSubtask ? (input.agent ?? (await Agent.defaultAgent())) : agentName
     const userModel = isSubtask
@@ -1724,6 +1732,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       agent: userAgent,
       parts,
       variant: input.variant,
+      ...(skillSystem && { system: skillSystem }),
     })) as MessageV2.WithParts
 
     Bus.publish(Command.Event.Executed, {
