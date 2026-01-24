@@ -53,7 +53,20 @@ function EditBody(props: { request: PermissionRequest }) {
   const filepath = createMemo(() => (props.request.metadata?.filepath as string) ?? "")
   const diff = createMemo(() => (props.request.metadata?.diff as string) ?? "")
 
+  const isNewFile = createMemo(() => {
+    const meta = props.request.metadata ?? {}
+    const fileType = typeof meta["fileType"] === "string" ? (meta["fileType"] as string) : undefined
+    if (fileType === "add") return true
+    const files = Array.isArray(meta["files"]) ? meta["files"] : undefined
+    if (!files || files.length !== 1) return false
+    const first = files[0]
+    if (!first || typeof first !== "object") return false
+    const type = "type" in first ? (first as { type?: string }).type : undefined
+    return type === "add"
+  })
+
   const view = createMemo(() => {
+    if (isNewFile()) return "unified"
     const diffStyle = sync.data.config.tui?.diff_style
     if (diffStyle === "stacked") return "unified"
     return dimensions().width > 120 ? "split" : "unified"

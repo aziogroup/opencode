@@ -1830,12 +1830,16 @@ function Edit(props: ToolProps<typeof EditTool>) {
   const ctx = use()
   const { theme, syntax } = useTheme()
 
-  const view = createMemo(() => {
+  const baseView = createMemo(() => {
     const diffStyle = ctx.sync.data.config.tui?.diff_style
     if (diffStyle === "stacked") return "unified"
     // Default to "auto" behavior
     return ctx.width > 120 ? "split" : "unified"
   })
+
+  const isNewFile = createMemo(() => props.metadata.filediff?.before === "")
+
+  const view = createMemo(() => (isNewFile() ? "unified" : baseView()))
 
   const ft = createMemo(() => filetype(props.input.filePath))
 
@@ -1901,18 +1905,20 @@ function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
 
   const files = createMemo(() => props.metadata.files ?? [])
 
-  const view = createMemo(() => {
+  const baseView = createMemo(() => {
     const diffStyle = ctx.sync.data.config.tui?.diff_style
     if (diffStyle === "stacked") return "unified"
     return ctx.width > 120 ? "split" : "unified"
   })
 
-  function Diff(p: { diff: string; filePath: string }) {
+  const viewFor = (type?: string) => (type === "add" ? "unified" : baseView())
+
+  function Diff(p: { diff: string; filePath: string; type?: string }) {
     return (
       <box paddingLeft={1}>
         <diff
           diff={p.diff}
-          view={view()}
+          view={viewFor(p.type)}
           filetype={filetype(p.filePath)}
           syntaxStyle={syntax()}
           showLineNumbers={true}
@@ -1954,7 +1960,7 @@ function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
                   </text>
                 }
               >
-                <Diff diff={file.diff} filePath={file.filePath} />
+                <Diff diff={file.diff} filePath={file.filePath} type={file.type} />
               </Show>
             </BlockTool>
           )}
