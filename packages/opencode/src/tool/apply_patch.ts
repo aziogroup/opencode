@@ -158,6 +158,11 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       }
     }
 
+    const permissionFiles = fileChanges.map((change) => ({
+      type: change.type,
+      relativePath: path.relative(Instance.worktree, change.movePath ?? change.filePath),
+    }))
+
     // Check permissions if needed
     await ctx.ask({
       permission: "edit",
@@ -165,6 +170,7 @@ export const ApplyPatchTool = Tool.define("apply_patch", {
       always: ["*"],
       metadata: {
         diff: totalDiff,
+        files: permissionFiles,
       },
     })
 

@@ -57,6 +57,7 @@ export const EditTool = Tool.define("edit", {
           metadata: {
             filepath: filePath,
             diff,
+            fileType: "add",
           },
         })
         await Bun.write(filePath, params.newString)
