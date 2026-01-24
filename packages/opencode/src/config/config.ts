@@ -1069,6 +1069,7 @@ export namespace Config {
             })
             .optional(),
           chatMaxRetries: z.number().optional().describe("Number of retries for chat completions on failure"),
+          copy_on_select: z.boolean().optional().describe("Enable copy on select in the TUI (default false)"),
           disable_paste_summary: z.boolean().optional(),
           batch_tool: z.boolean().optional().describe("Enable the batch tool"),
           openTelemetry: z

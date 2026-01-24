@@ -1,10 +1,12 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { batch, createContext, Show, useContext, type JSX, type ParentProps } from "solid-js"
 import { useTheme } from "@tui/context/theme"
+import { useSync } from "@tui/context/sync"
 import { Renderable, RGBA } from "@opentui/core"
 import { createStore } from "solid-js/store"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "./toast"
+import { Flag } from "@/flag/flag"
 
 export function Dialog(
   props: ParentProps<{
@@ -132,20 +134,23 @@ const ctx = createContext<DialogContext>()
 export function DialogProvider(props: ParentProps) {
   const value = init()
   const renderer = useRenderer()
+  const sync = useSync()
   const toast = useToast()
+  const copyOnSelectEnabled = () =>
+    sync.data.config.experimental?.copy_on_select === true && !Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
   return (
     <ctx.Provider value={value}>
       {props.children}
       <box
         position="absolute"
         onMouseUp={async () => {
+          if (!copyOnSelectEnabled()) return
           const text = renderer.getSelection()?.getSelectedText()
-          if (text && text.length > 0) {
-            await Clipboard.copy(text)
-              .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
-              .catch(toast.error)
-            renderer.clearSelection()
-          }
+          if (!text || text.length === 0) return
+          await Clipboard.copy(text)
+            .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+            .catch(toast.error)
+          renderer.clearSelection()
         }}
       >
         <Show when={value.stack.length}>

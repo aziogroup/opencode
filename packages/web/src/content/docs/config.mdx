@@ -614,13 +614,19 @@ The `experimental` key contains options that are under active development.
 ```json title="opencode.json"
 {
   "$schema": "https://opencode.ai/config.json",
-  "experimental": {}
+  "experimental": {
+    "copy_on_select": true
+  }
 }
 ```
 
 :::caution
 Experimental options are not stable. They may change or be removed without notice.
 :::
+
+Current options:
+
+- `copy_on_select` (boolean) - Enable copy on select in the TUI (default false).
 
 ---
 

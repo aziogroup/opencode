@@ -782,6 +782,8 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+                const selection = renderer.getSelection()?.getSelectedText()
+                if (selection && selection.length > 0 && e.ctrl && e.name === "c") return
                 if (keybind.match("session_interrupt", e)) {
                   const handled = interrupt()
                   if (handled) {
