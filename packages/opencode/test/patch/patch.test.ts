@@ -85,6 +85,25 @@ describe("Patch namespace", () => {
 
       expect(() => Patch.parsePatch(invalidPatch)).toThrow("Invalid patch format")
     })
+
+    test("should preserve Windows drive paths in headers", () => {
+      const patchText = `*** Begin Patch
+*** Update File: G:\\temp\\old.txt
+*** Move to: G:\\temp\\new.txt
+@@
+-Old content
++New content
+*** End Patch`
+
+      const result = Patch.parsePatch(patchText)
+      expect(result.hunks).toHaveLength(1)
+      const hunk = result.hunks[0]
+      expect(hunk.type).toBe("update")
+      expect(hunk.path).toBe("G:\\temp\\old.txt")
+      if (hunk.type === "update") {
+        expect(hunk.move_path).toBe("G:\\temp\\new.txt")
+      }
+    })
   })
 
   describe("maybeParseApplyPatch", () => {

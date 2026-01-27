@@ -77,27 +77,23 @@ export namespace Patch {
     startIdx: number,
   ): { filePath: string; movePath?: string; nextIdx: number } | null {
     const line = lines[startIdx]
+    const extract = (input: string, prefix: string) => input.slice(prefix.length).trim()
 
     if (line.startsWith("*** Add File:")) {
-      const filePath = line.split(":", 2)[1]?.trim()
+      const filePath = extract(line, "*** Add File:")
       return filePath ? { filePath, nextIdx: startIdx + 1 } : null
     }
 
     if (line.startsWith("*** Delete File:")) {
-      const filePath = line.split(":", 2)[1]?.trim()
+      const filePath = extract(line, "*** Delete File:")
       return filePath ? { filePath, nextIdx: startIdx + 1 } : null
     }
 
     if (line.startsWith("*** Update File:")) {
-      const filePath = line.split(":", 2)[1]?.trim()
-      let movePath: string | undefined
-      let nextIdx = startIdx + 1
-
-      // Check for move directive
-      if (nextIdx < lines.length && lines[nextIdx].startsWith("*** Move to:")) {
-        movePath = lines[nextIdx].split(":", 2)[1]?.trim()
-        nextIdx++
-      }
+      const filePath = extract(line, "*** Update File:")
+      const moveLine = startIdx + 1 < lines.length && lines[startIdx + 1].startsWith("*** Move to:")
+      const movePath = moveLine ? extract(lines[startIdx + 1], "*** Move to:") : undefined
+      const nextIdx = moveLine ? startIdx + 2 : startIdx + 1
 
       return filePath ? { filePath, movePath, nextIdx } : null
     }

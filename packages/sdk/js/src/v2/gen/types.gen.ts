@@ -814,6 +814,14 @@ export type EventSessionError = {
   }
 }
 
+export type EventSessionPlanUpdated = {
+  type: "session.plan.updated"
+  properties: {
+    sessionID: string
+    path: string
+  }
+}
+
 export type EventVcsBranchUpdated = {
   type: "vcs.branch.updated"
   properties: {
@@ -896,6 +904,7 @@ export type Event =
   | EventSessionDeleted
   | EventSessionDiff
   | EventSessionError
+  | EventSessionPlanUpdated
   | EventVcsBranchUpdated
   | EventPtyCreated
   | EventPtyUpdated
@@ -1779,6 +1788,10 @@ export type Config = {
      * Number of retries for chat completions on failure
      */
     chatMaxRetries?: number
+    /**
+     * Enable copy on select in the TUI (default false)
+     */
+    copy_on_select?: boolean
     disable_paste_summary?: boolean
     /**
      * Enable the batch tool
@@ -1923,6 +1936,13 @@ export type McpResource = {
   description?: string
   mimeType?: string
   client: string
+}
+
+export type SessionDuplicateError = {
+  name: "SessionDuplicateError"
+  data: {
+    id: string
+  }
 }
 
 export type TextPartInput = {
@@ -2077,6 +2097,8 @@ export type Command = {
   agent?: string
   model?: string
   mcp?: boolean
+  skill?: boolean
+  location?: string
   template: string
   subtask?: boolean
   hints: Array<string>
@@ -2723,6 +2745,7 @@ export type SessionListResponse = SessionListResponses[keyof SessionListResponse
 
 export type SessionCreateData = {
   body?: {
+    id?: string
     parentID?: string
     title?: string
     permission?: PermissionRuleset
@@ -2739,6 +2762,10 @@ export type SessionCreateErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * Conflict
+   */
+  409: SessionDuplicateError
 }
 
 export type SessionCreateError = SessionCreateErrors[keyof SessionCreateErrors]
@@ -4794,6 +4821,9 @@ export type AppSkillsResponses = {
     name: string
     description: string
     location: string
+    disableModelInvocation?: boolean
+    userInvocable?: boolean
+    argumentHint?: string
   }>
 }
 
