@@ -229,20 +229,21 @@ function App() {
   const copyOnSelectEnabled = () =>
     sync.data.config.experimental?.copy_on_select === true && !Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
 
+  const selection = () => {
+    const current = renderer.getSelection()
+    const text = current?.getSelectedText() ?? ""
+    const cached = selectionText()
+    const value = text || cached
+    const active = Boolean(current) || cached.length > 0
+    return { value, active }
+  }
+
   const copySelection = async (text: string) => {
     await Clipboard.copy(text)
       .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
       .catch(toast.error)
     renderer.clearSelection()
     setSelectionText("")
-  }
-
-  const getSelectionText = () => {
-    const selection = renderer.getSelection()
-    const text = selection?.getSelectedText()
-    if (text && text.length > 0) return text
-    if (!selection) return ""
-    return selectionText()
   }
 
   const handleSelection = (selection: Selection) => {
@@ -259,25 +260,26 @@ function App() {
 
   const handleCopyKey = async (evt: KeyEvent) => {
     if (!evt.ctrl || evt.name !== "c") return
-    const text = getSelectionText()
-    if (!text) return
+    const info = selection()
+    if (!info.active) return
     evt.preventDefault()
     evt.stopPropagation()
-    await copySelection(text)
+    if (!info.value) return
+    await copySelection(info.value)
   }
 
   const handleCopyInput = (sequence: string) => {
     if (sequence !== "\x03") return false
-    const text = getSelectionText()
-    if (!text) return false
-    void copySelection(text)
+    const info = selection()
+    if (!info.active) return false
+    if (info.value) void copySelection(info.value)
     return true
   }
 
   const handleSigint = () => {
-    const text = getSelectionText()
-    if (text) {
-      void copySelection(text)
+    const info = selection()
+    if (info.active) {
+      if (info.value) void copySelection(info.value)
       return
     }
     renderer.keyInput.processInput("\x03")
