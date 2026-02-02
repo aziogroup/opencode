@@ -354,8 +354,10 @@ export function Autocomplete(props: {
     }))
 
     for (const serverCommand of sync.data.command) {
+      if (serverCommand.source === "skill") continue
+      const label = serverCommand.source === "mcp" ? ":mcp" : ""
       results.push({
-        display: "/" + serverCommand.name + (serverCommand.mcp ? " (MCP)" : ""),
+        display: "/" + serverCommand.name + label,
         description: normalizeDescription(serverCommand.description),
         onSelect: () => {
           const newText = "/" + serverCommand.name + " "

@@ -6,8 +6,7 @@ import { Identifier } from "../id/id"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { MCP } from "../mcp"
-import { Skill } from "../skill/skill"
-import { ConfigMarkdown } from "../config/markdown"
+import { Skill } from "../skill"
 
 export namespace Command {
   export const Event = {
@@ -28,9 +27,7 @@ export namespace Command {
       description: z.string().optional(),
       agent: z.string().optional(),
       model: z.string().optional(),
-      mcp: z.boolean().optional(),
-      skill: z.boolean().optional(),
-      location: z.string().optional(),
+      source: z.enum(["command", "mcp", "skill"]).optional(),
       // workaround for zod not supporting async functions natively so we use getters
       // https://zod.dev/v4/changelog?id=zfunction
       template: z.promise(z.string()).or(z.string()),
@@ -66,6 +63,7 @@ export namespace Command {
       [Default.INIT]: {
         name: Default.INIT,
         description: "create/update AGENTS.md",
+        source: "command",
         get template() {
           return PROMPT_INITIALIZE.replace("${path}", Instance.worktree)
         },
@@ -74,6 +72,7 @@ export namespace Command {
       [Default.REVIEW]: {
         name: Default.REVIEW,
         description: "review changes [commit|branch|pr], defaults to uncommitted",
+        source: "command",
         get template() {
           return PROMPT_REVIEW.replace("${path}", Instance.worktree)
         },
@@ -88,6 +87,7 @@ export namespace Command {
         agent: command.agent,
         model: command.model,
         description: command.description,
+        source: "command",
         get template() {
           return command.template
         },
@@ -98,7 +98,7 @@ export namespace Command {
     for (const [name, prompt] of Object.entries(await MCP.prompts())) {
       result[name] = {
         name,
-        mcp: true,
+        source: "mcp",
         description: prompt.description,
         get template() {
           // since a getter can't be async we need to manually return a promise here
@@ -122,23 +122,18 @@ export namespace Command {
       }
     }
 
-    // Integrate Skills as commands (user-invocable skills only)
-    const skills = await Skill.all()
-    for (const skill of skills) {
-      // Skip if command with same name already exists (commands take priority)
+    // Add skills as invokable commands
+    for (const skill of await Skill.all()) {
+      // Skip if a command with this name already exists
       if (result[skill.name]) continue
-      // Skip skills with userInvocable: false (AI-only skills)
-      if (skill.userInvocable === false) continue
-
       result[skill.name] = {
         name: skill.name,
         description: skill.description,
-        skill: true,
-        location: skill.location,
+        source: "skill",
         get template() {
-          return ConfigMarkdown.parse(skill.location).then((md) => md.content.trim())
+          return skill.content
         },
-        hints: skill.argumentHint ? [skill.argumentHint] : [],
+        hints: [],
       }
     }
 
