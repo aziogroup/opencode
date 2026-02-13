@@ -1,20 +1,10 @@
 import { render, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
-import { TextAttributes, type KeyEvent, type Selection } from "@opentui/core"
+import { Selection } from "@tui/util/selection"
+import { MouseButton, TextAttributes } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
-import {
-  Switch,
-  Match,
-  createEffect,
-  untrack,
-  ErrorBoundary,
-  createSignal,
-  onMount,
-  onCleanup,
-  batch,
-  Show,
-  on,
-} from "solid-js"
+import { Switch, Match, createEffect, untrack, ErrorBoundary, createSignal, onMount, batch, Show, on } from "solid-js"
+import { win32DisableProcessedInput, win32FlushInputBuffer, win32InstallCtrlCGuard } from "./win32"
 import { Installation } from "@/installation"
 import { Flag } from "@/flag/flag"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
@@ -111,8 +101,6 @@ async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
 
 import type { EventSource } from "./context/sdk"
 
-const sigintHandler = { current: () => {} }
-
 export function tui(input: {
   url: string
   args: Args
@@ -124,23 +112,17 @@ export function tui(input: {
 }) {
   // promise to prevent immediate exit
   return new Promise<void>(async (resolve) => {
+    const unguard = win32InstallCtrlCGuard()
+    win32DisableProcessedInput()
+
     const mode = await getTerminalBackgroundColor()
-    sigintHandler.current = () => {}
-    const sigint = () => sigintHandler.current()
-    const signals: NodeJS.Signals[] = [
-      "SIGTERM",
-      "SIGQUIT",
-      "SIGABRT",
-      "SIGHUP",
-      "SIGBREAK",
-      "SIGPIPE",
-      "SIGBUS",
-      "SIGFPE",
-    ]
-    process.on("SIGINT", sigint)
+
+    // Re-clear after getTerminalBackgroundColor() — setRawMode(false) restores
+    // the original console mode which re-enables ENABLE_PROCESSED_INPUT.
+    win32DisableProcessedInput()
+
     const onExit = async () => {
-      sigintHandler.current = () => {}
-      process.off("SIGINT", sigint)
+      unguard?.()
       await input.onExit?.()
       resolve()
     }
@@ -197,9 +179,9 @@ export function tui(input: {
         targetFps: 60,
         gatherStats: false,
         exitOnCtrlC: false,
-        exitSignals: signals,
         useKittyKeyboard: {},
         autoFocus: false,
+        openConsoleOnError: false,
         consoleOptions: {
           keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
           onCopySelection: (text) => {
@@ -228,79 +210,47 @@ function App() {
   const sync = useSync()
   const exit = useExit()
   const promptRef = usePromptRef()
-  const [selectionText, setSelectionText] = createSignal("")
-  const copyOnSelectEnabled = () =>
-    sync.data.config.experimental?.copy_on_select === true && !Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
 
-  const selection = () => {
-    const current = renderer.getSelection()
-    const text = current?.getSelectedText() ?? ""
-    const cached = selectionText()
-    const value = text || cached
-    const active = Boolean(current) || cached.length > 0
-    return { value, active }
-  }
+  useKeyboard((evt) => {
+    if (!Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
+    if (!renderer.getSelection()) return
 
-  const copySelection = async (text: string) => {
-    await Clipboard.copy(text)
-      .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
-      .catch(toast.error)
+    // Windows Terminal-like behavior:
+    // - Ctrl+C copies and dismisses selection
+    // - Esc dismisses selection
+    // - Most other key input dismisses selection and is passed through
+    if (evt.ctrl && evt.name === "c") {
+      if (!Selection.copy(renderer, toast)) {
+        renderer.clearSelection()
+        return
+      }
+
+      evt.preventDefault()
+      evt.stopPropagation()
+      return
+    }
+
+    if (evt.name === "escape") {
+      renderer.clearSelection()
+      evt.preventDefault()
+      evt.stopPropagation()
+      return
+    }
+
     renderer.clearSelection()
-    setSelectionText("")
-  }
-
-  const handleSelection = (selection: Selection) => {
-    setSelectionText(selection.getSelectedText())
-  }
+  })
 
   // Wire up console copy-to-clipboard via opentui's onCopySelection callback
   renderer.console.onCopySelection = async (text: string) => {
     if (!text || text.length === 0) return
 
-    await copySelection(text)
+    await Clipboard.copy(text)
+      .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+      .catch(toast.error)
+
+    renderer.clearSelection()
   }
   const [terminalTitleEnabled, setTerminalTitleEnabled] = createSignal(kv.get("terminal_title_enabled", true))
-
-  const handleCopyKey = async (evt: KeyEvent) => {
-    if (!evt.ctrl || evt.name !== "c") return
-    const info = selection()
-    if (!info.active) return
-    evt.preventDefault()
-    evt.stopPropagation()
-    if (!info.value) return
-    await copySelection(info.value)
-  }
-
-  const handleCopyInput = (sequence: string) => {
-    if (sequence !== "\x03") return false
-    const info = selection()
-    if (!info.active) return false
-    if (info.value) void copySelection(info.value)
-    return true
-  }
-
-  const handleSigint = () => {
-    const info = selection()
-    if (info.active) {
-      if (info.value) void copySelection(info.value)
-      return
-    }
-    renderer.keyInput.processInput("\x03")
-  }
-
-  onMount(() => {
-    renderer.on("selection", handleSelection)
-    renderer.keyInput.prependListener("keypress", handleCopyKey)
-    renderer.prependInputHandler(handleCopyInput)
-    sigintHandler.current = handleSigint
-  })
-
-  onCleanup(() => {
-    sigintHandler.current = () => {}
-    renderer.off("selection", handleSelection)
-    renderer.keyInput.off("keypress", handleCopyKey)
-    renderer.removeInputHandler(handleCopyInput)
-  })
 
   createEffect(() => {
     console.log(JSON.stringify(route.data))
@@ -784,12 +734,15 @@ function App() {
       width={dimensions().width}
       height={dimensions().height}
       backgroundColor={theme.background}
-      onMouseUp={async () => {
-        if (!copyOnSelectEnabled()) return
-        const text = renderer.getSelection()?.getSelectedText()
-        if (!text || text.length === 0) return
-        await copySelection(text)
+      onMouseDown={(evt) => {
+        if (!Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
+        if (evt.button !== MouseButton.RIGHT) return
+
+        if (!Selection.copy(renderer, toast)) return
+        evt.preventDefault()
+        evt.stopPropagation()
       }}
+      onMouseUp={Flag.OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT ? undefined : () => Selection.copy(renderer, toast)}
     >
       <Switch>
         <Match when={route.data.type === "home"}>
@@ -815,7 +768,8 @@ function ErrorComponent(props: {
   const handleExit = async () => {
     renderer.setTerminalTitle("")
     renderer.destroy()
-    props.onExit()
+    win32FlushInputBuffer()
+    await props.onExit()
   }
 
   useKeyboard((evt) => {
