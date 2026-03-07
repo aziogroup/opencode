@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
+import { fileURLToPath } from "url"
+
+const dir = fileURLToPath(new URL("..", import.meta.url))
+process.chdir(dir)
 
 import { $ } from "bun"
 import path from "path"
-import { fileURLToPath } from "url"
-
-const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-process.chdir(dir)
 
 import { createClient } from "@hey-api/openapi-ts"
 
