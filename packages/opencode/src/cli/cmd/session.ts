@@ -149,9 +149,8 @@ export const SessionCreateCommand = cmd({
   handler: async (args) => {
     await bootstrap(process.cwd(), async () => {
       const session = await Session.create({
-        id: args.id,
         title: args.title,
-        parentID: args.parent,
+        parentID: args.parent as SessionID | undefined,
       })
       console.log(session.id)
     })

@@ -4,8 +4,6 @@ import { Config } from "../config/config"
 import { MCP } from "../mcp"
 import { Provider } from "../provider/provider"
 import { UI } from "./ui"
-import { Session } from "../session"
-
 export function FormatError(input: unknown) {
   if (MCP.Failed.isInstance(input))
     return `MCP server "${input.data.name}" failed. Note, opencode does not support MCP authentication yet.`
@@ -20,9 +18,6 @@ export function FormatError(input: unknown) {
   }
   if (Provider.InitError.isInstance(input)) {
     return `Failed to initialize provider "${input.data.providerID}". Check credentials and configuration.`
-  }
-  if (Session.DuplicateError.isInstance(input)) {
-    return `Session ID already exists: ${input.data.id}`
   }
   if (Config.JsonError.isInstance(input)) {
     return (
